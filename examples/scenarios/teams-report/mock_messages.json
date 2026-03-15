@@ -1,0 +1,50 @@
+[
+  {
+    "id": "msg-001",
+    "createdDateTime": "2026-03-09T09:15:00Z",
+    "from": { "user": { "displayName": "田中太郎" } },
+    "body": { "content": "v2.0リリースのスケジュールですが、3/20で問題ないでしょうか？QAチームの確認が必要です。" }
+  },
+  {
+    "id": "msg-002",
+    "createdDateTime": "2026-03-09T09:32:00Z",
+    "from": { "user": { "displayName": "佐藤花子" } },
+    "body": { "content": "QA側は3/18までにテスト完了予定です。ただし、認証モジュールの変更が大きいので追加テストが必要かもしれません。" }
+  },
+  {
+    "id": "msg-003",
+    "createdDateTime": "2026-03-09T10:05:00Z",
+    "from": { "user": { "displayName": "鈴木一郎" } },
+    "body": { "content": "認証モジュールのリファクタリングPR出しました。レビューお願いします。 #PR-1234" }
+  },
+  {
+    "id": "msg-004",
+    "createdDateTime": "2026-03-10T14:20:00Z",
+    "from": { "user": { "displayName": "田中太郎" } },
+    "body": { "content": "パフォーマンステストの結果、APIレスポンスが200ms→450msに悪化しています。原因調査が必要です。" }
+  },
+  {
+    "id": "msg-005",
+    "createdDateTime": "2026-03-10T15:00:00Z",
+    "from": { "user": { "displayName": "佐藤花子" } },
+    "body": { "content": "N+1クエリが原因の可能性があります。ORMのイーガーローディング設定を確認します。" }
+  },
+  {
+    "id": "msg-006",
+    "createdDateTime": "2026-03-11T09:00:00Z",
+    "from": { "user": { "displayName": "鈴木一郎" } },
+    "body": { "content": "修正しました。レスポンスタイム180msに改善。本番環境でも確認お願いします。" }
+  },
+  {
+    "id": "msg-007",
+    "createdDateTime": "2026-03-11T11:30:00Z",
+    "from": { "user": { "displayName": "田中太郎" } },
+    "body": { "content": "本番確認OK。v2.0リリースは3/20で確定します。リリースノートの準備をお願いします。" }
+  },
+  {
+    "id": "msg-008",
+    "createdDateTime": "2026-03-12T10:00:00Z",
+    "from": { "user": { "displayName": "佐藤花子" } },
+    "body": { "content": "セキュリティスキャンで1件Warning出ています。依存パッケージのアップデートで対応可能です。対応します。" }
+  }
+]

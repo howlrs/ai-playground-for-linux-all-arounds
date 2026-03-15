@@ -172,6 +172,11 @@ COPY --chown=${USERNAME}:${USERNAME} AGENTS.md ${HOME}/AGENTS.md
 COPY --chown=${USERNAME}:${USERNAME} GEMINI.md ${HOME}/GEMINI.md
 
 # ---------------------------------------------------------------------------
+# 18. Example projects and scenarios (read-only templates)
+# ---------------------------------------------------------------------------
+COPY --chown=${USERNAME}:${USERNAME} examples/ ${HOME}/examples/
+
+# ---------------------------------------------------------------------------
 # Workspace
 # ---------------------------------------------------------------------------
 RUN mkdir -p ${HOME}/workspace

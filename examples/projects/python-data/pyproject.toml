@@ -1,0 +1,13 @@
+[project]
+name = "python-data-example"
+version = "0.1.0"
+description = "Python data analysis template for AI Playground"
+requires-python = ">=3.13"
+dependencies = [
+    "pandas>=2.2",
+    "matplotlib>=3.9",
+    "httpx>=0.28",
+]
+
+[project.scripts]
+analyze = "main:main"

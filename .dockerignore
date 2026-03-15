@@ -1,0 +1,14 @@
+# Examples are copied separately (not part of build context for scripts/)
+# They are COPY'd explicitly in Dockerfile
+.git
+.env
+*.md
+!CLAUDE.md
+!AGENTS.md
+!GEMINI.md
+docs/
+workspace/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

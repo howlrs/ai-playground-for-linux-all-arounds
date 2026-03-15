@@ -10,6 +10,23 @@ workspace/
 # Node
 node_modules/
 
+# Rust build artifacts
+target/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Go
+bin/
+
+# Generated files in examples
+examples/scenarios/teams-report/report.md
+examples/projects/rust-cli/tasks.json
+examples/projects/python-data/sales_data.csv
+
 # OS
 .DS_Store
 Thumbs.db
