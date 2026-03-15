@@ -1,0 +1,48 @@
+services:
+  playground:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-playground
+    hostname: ai-playground
+    stdin_open: true
+    tty: true
+
+    env_file:
+      - .env
+
+    environment:
+      - TERM=xterm-256color
+
+    volumes:
+      # Workspace: host projects mounted here
+      - ./workspace:/home/dev/workspace
+
+      # Persist AI agent configs across rebuilds
+      - claude-config:/home/dev/.claude
+      - gemini-config:/home/dev/.gemini
+
+      # Git config from host (read-only)
+      - ${HOME}/.gitconfig:/home/dev/.gitconfig:ro
+
+      # SSH keys from host (read-only) for git operations
+      - ${HOME}/.ssh:/home/dev/.ssh:ro
+
+      # Cloud CLI credentials (optional, mount if pre-authenticated)
+      # - ${HOME}/.config/gcloud:/home/dev/.config/gcloud:ro
+      # - ${HOME}/.aws:/home/dev/.aws:ro
+
+    # No network restrictions - agents need full internet access
+    network_mode: bridge
+
+    # Resource limits (adjust as needed)
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 2G
+
+volumes:
+  claude-config:
+  gemini-config:

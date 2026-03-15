@@ -1,0 +1,19 @@
+# Secrets
+.env
+*.pem
+*.key
+service-account*.json
+
+# Workspace contents (mounted at runtime)
+workspace/
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
