@@ -1,6 +1,6 @@
 # =============================================================================
 # AI Playground for Linux - All Arounds
-# Claude Code (primary) + Gemini CLI (QA agent) + Full dev toolchain
+# Claude Code (primary) + Gemini CLI (QA) + Codex + Full dev toolchain
 # =============================================================================
 FROM ubuntu:24.04
 
@@ -10,6 +10,7 @@ ARG USER_GID=1000
 ARG NODE_MAJOR=22
 ARG GO_VERSION=1.23.6
 ARG RUST_VERSION=stable
+ARG UV_VERSION=0.6
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
@@ -34,14 +35,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     pkg-config \
     libssl-dev \
-    python3 \
-    python3-pip \
-    python3-venv \
     openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
 # ---------------------------------------------------------------------------
-# 2. Node.js (for Claude Code, Gemini CLI, gws, Next.js)
+# 2. Node.js (for Claude Code, Gemini CLI, Codex, gws, m365, Next.js)
 # ---------------------------------------------------------------------------
 RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash - \
     && apt-get install -y nodejs \
@@ -94,7 +92,13 @@ RUN curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" \
 ENV PATH="/usr/local/go/bin:${PATH}"
 
 # ---------------------------------------------------------------------------
-# 8. Create non-root user with full sudo
+# 8. uv (Python package manager - replaces pip/venv/conda)
+# ---------------------------------------------------------------------------
+RUN curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
+ENV PATH="/root/.local/bin:${PATH}"
+
+# ---------------------------------------------------------------------------
+# 9. Create non-root user with full sudo
 # ---------------------------------------------------------------------------
 RUN groupadd --gid ${USER_GID} ${USERNAME} \
     && useradd --uid ${USER_UID} --gid ${USER_GID} -m -s /bin/bash ${USERNAME} \
@@ -107,13 +111,21 @@ ENV HOME=/home/${USERNAME}
 ENV PATH="${HOME}/.cargo/bin:${HOME}/go/bin:${HOME}/.local/bin:${PATH}"
 
 # ---------------------------------------------------------------------------
-# 9. Rust (user-level install)
+# 10. uv for user - install Python and set as managed
+# ---------------------------------------------------------------------------
+RUN curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh \
+    && uv python install 3.13 \
+    && uv python pin 3.13
+ENV UV_PYTHON_PREFERENCE=managed
+
+# ---------------------------------------------------------------------------
+# 11. Rust (user-level install)
 # ---------------------------------------------------------------------------
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
     | sh -s -- -y --default-toolchain ${RUST_VERSION}
 
 # ---------------------------------------------------------------------------
-# 10. AI Agents & Workspace tools (npm global → user prefix)
+# 12. AI Agents & Workspace tools (npm global → user prefix)
 # ---------------------------------------------------------------------------
 RUN mkdir -p "${HOME}/.npm-global" \
     && npm config set prefix "${HOME}/.npm-global"
@@ -122,19 +134,22 @@ ENV PATH="${HOME}/.npm-global/bin:${PATH}"
 RUN npm install -g \
     @anthropic-ai/claude-code \
     @google/gemini-cli \
-    @googleworkspace/cli
+    @openai/codex \
+    @googleworkspace/cli \
+    @pnp/cli-microsoft365
 
 # ---------------------------------------------------------------------------
-# 11. Python tools (notebooklm-py)
+# 13. Python tools via uv (global tool installs)
 # ---------------------------------------------------------------------------
-RUN python3 -m venv "${HOME}/.venv" \
-    && . "${HOME}/.venv/bin/activate" \
-    && pip install --no-cache-dir "notebooklm-py[browser]" \
-    && playwright install --with-deps chromium
-ENV PATH="${HOME}/.venv/bin:${PATH}"
+RUN uv tool install "notebooklm-py[browser]" \
+    && uv tool install msgraph-sdk \
+    && uv tool install azure-identity
+
+# Playwright for notebooklm-py (needs browser binary)
+RUN uvx --from "notebooklm-py[browser]" playwright install --with-deps chromium
 
 # ---------------------------------------------------------------------------
-# 12. Setup scripts directory
+# 14. Setup scripts directory
 # ---------------------------------------------------------------------------
 COPY --chown=${USERNAME}:${USERNAME} scripts/ ${HOME}/scripts/
 RUN chmod +x ${HOME}/scripts/*.sh

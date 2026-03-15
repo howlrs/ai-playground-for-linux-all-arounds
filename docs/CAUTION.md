@@ -2,7 +2,7 @@
 
 ## 基本方針
 
-このコンテナ内のAIエージェント（Claude Code, Gemini CLI）には、ローカルファイル操作において最大限の権限を与えています。
+このコンテナ内のAIエージェント（Claude Code, Gemini CLI, Codex）には、ローカルファイル操作において最大限の権限を与えています。
 **ただし、外部サービスに影響を与えるCLI操作については、以下の注意が必要です。**
 
 ## 注意が必要なコマンド
@@ -39,6 +39,15 @@
 | `aws rds delete-db-instance` | RDSインスタンス削除 |
 | リソース作成全般 | **課金が発生** |
 
+### m365 (CLI for Microsoft 365 / Teams)
+| 操作 | リスク |
+|------|--------|
+| `m365 teams message send` | メッセージ送信 |
+| `m365 teams channel add/remove` | チャンネル変更 |
+| `m365 teams team remove` | チーム削除 |
+| `m365 mail send` | メール送信 |
+| `m365 spo file remove` | SharePointファイル削除 |
+
 ## AIエージェントへの指針
 
 1. **読み取り操作（list, describe, get）** → 自由に実行可
@@ -53,4 +62,5 @@
 - gh, glab: read operations are free, write/delete require user confirmation
 - gcloud, aws: ALL operations require user confirmation (billing risk)
 - gws: read operations are free, send/modify require user confirmation
+- m365: read operations (list, get) are free, send/modify/delete require user confirmation
 ```

@@ -21,6 +21,13 @@ services:
       # Persist AI agent configs across rebuilds
       - claude-config:/home/dev/.claude
       - gemini-config:/home/dev/.gemini
+      - codex-config:/home/dev/.codex
+
+      # Persist uv cache (speeds up subsequent installs)
+      - uv-cache:/home/dev/.cache/uv
+
+      # Persist m365 CLI auth
+      - m365-config:/home/dev/.cli-m365
 
       # Git config from host (read-only)
       - ${HOME}/.gitconfig:/home/dev/.gitconfig:ro
@@ -46,3 +53,6 @@ services:
 volumes:
   claude-config:
   gemini-config:
+  codex-config:
+  uv-cache:
+  m365-config:
