@@ -43,24 +43,50 @@
 
 ### Gemini CLI への QA 依頼
 
-実装の節目（機能完成、PR作成前など）で Gemini CLI にレビューを依頼する。
+実装の節目（機能完成、PR作成前など）で Gemini CLI に `-p` でレビューを依頼する。
+Gemini CLIはプロジェクトルートの `GEMINI.md` を自動読み込みするため、QAとしての
+役割・レビュー観点・回答フォーマットは既に前提として設定されている。
+そのため、依頼時は**対象コードと依頼種別のみ**を簡潔に渡せばよい。
 
+#### コードレビュー
 ```bash
-# コードレビュー依頼
-gemini -p "以下のdiffをレビューしてください。バグ、設計上の問題、改善点を指摘してください。
+gemini -p "コードレビュー依頼:
 $(git diff main...HEAD)"
-
-# 設計レビュー依頼
-gemini -p "以下の設計文書をレビューしてください。見落としている要件、スケーラビリティの問題、代替案があれば指摘してください。
-$(cat docs/superpowers/specs/*.md)"
-
-# テストカバレッジ確認
-gemini -p "以下のテストコードは実装を十分にカバーしていますか？不足しているテストケースを列挙してください。
-Implementation: $(cat src/*.ts)
-Tests: $(cat tests/*.ts)"
 ```
 
-Gemini CLIの回答を鵜呑みにせず、技術的根拠を確認した上で判断すること。
+#### 設計レビュー
+```bash
+gemini -p "設計レビュー依頼:
+$(cat docs/superpowers/specs/YYYY-MM-DD-*.md)"
+```
+
+#### テストレビュー
+```bash
+gemini -p "テストレビュー依頼:
+実装: $(cat src/main.ts)
+テスト: $(cat tests/main.test.ts)"
+```
+
+#### セキュリティレビュー
+```bash
+gemini -p "セキュリティレビュー依頼:
+$(cat src/auth.ts src/api.ts)"
+```
+
+#### 特定観点の指定（必要な場合のみ）
+```bash
+gemini -p "コードレビュー依頼（パフォーマンス重点）:
+$(git diff HEAD~3...HEAD)"
+```
+
+### QA結果の扱い方
+
+Gemini CLIの回答は構造化されたフォーマットで返る（GEMINI.md で定義済み）。
+
+1. **Critical**: 必ず対応する。ただし指摘の技術的根拠を自ら検証すること
+2. **Important**: 根拠を検証した上で対応を判断する
+3. **Suggestion**: 参考にする。対応は任意
+4. **根拠が不明な指摘**: 鵜呑みにせず、自分で調査して判断する
 
 ### Codex の補助利用
 
