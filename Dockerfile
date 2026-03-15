@@ -149,10 +149,27 @@ RUN uv tool install "notebooklm-py[browser]" \
 RUN uvx --from "notebooklm-py[browser]" playwright install --with-deps chromium
 
 # ---------------------------------------------------------------------------
-# 14. Setup scripts directory
+# 14. Superpowers plugin (Claude Code skills framework)
+# ---------------------------------------------------------------------------
+RUN claude mcp add-from-claude-plugin -- superpowers-marketplace/superpowers 2>/dev/null || true
+
+# ---------------------------------------------------------------------------
+# 15. Setup scripts directory
 # ---------------------------------------------------------------------------
 COPY --chown=${USERNAME}:${USERNAME} scripts/ ${HOME}/scripts/
 RUN chmod +x ${HOME}/scripts/*.sh
+
+# ---------------------------------------------------------------------------
+# 16. Claude Code settings (full permissions inside container)
+# ---------------------------------------------------------------------------
+COPY --chown=${USERNAME}:${USERNAME} config/.claude/settings.json ${HOME}/.claude/settings.json
+
+# ---------------------------------------------------------------------------
+# 17. Agent guide files (copied to workspace root for discovery)
+# ---------------------------------------------------------------------------
+COPY --chown=${USERNAME}:${USERNAME} CLAUDE.md ${HOME}/CLAUDE.md
+COPY --chown=${USERNAME}:${USERNAME} AGENTS.md ${HOME}/AGENTS.md
+COPY --chown=${USERNAME}:${USERNAME} GEMINI.md ${HOME}/GEMINI.md
 
 # ---------------------------------------------------------------------------
 # Workspace
