@@ -78,6 +78,58 @@ gemini
 codex
 ```
 
+## AgentDB（マルチエージェント共有DB）
+
+AgentDB は SurrealDB ベースの共有データベース。エージェント間で知見を共有・蓄積する。
+`setup-all.sh` 実行時に自動起動される。
+
+### 基本操作
+
+```bash
+# ステータス確認
+agentdb status
+
+# イベント記録（logs DB, TTL 14日）
+agentdb log conversation '{"context":"認証実装","summary":"OAuth2設計を議論"}'
+agentdb log error '{"message":"build failed","resolution":"missing import"}'
+
+# 知見の永続化（knowledge DB）
+agentdb save insight "Go importバグは頻出" "新規関数追加時にimport確認を最初に行う" --domain go --tags "go,import"
+agentdb save decision "OAuth2+PKCEを採用" "コンプライアンス要件を満たすため" --domain auth
+
+# 検索
+agentdb search "認証" --since 7d         # logs検索
+agentdb find "OAuth" --kind decision      # knowledge検索
+
+# 知見間の関係を記録
+agentdb relate entry:abc builds_on entry:xyz
+
+# 生SurrealQL実行
+agentdb query "SELECT * FROM event ORDER BY created_at DESC LIMIT 5;" --db logs
+```
+
+### 環境変数
+
+| 変数 | デフォルト | 説明 |
+|------|-----------|------|
+| `AGENTDB_AGENT` | `claude`（compose.yaml設定） | 記録者のエージェント名 |
+| `AGENTDB_BIND` | `127.0.0.1:8000` | SurrealDB アドレス |
+
+### 手動起動・停止
+
+```bash
+# 手動起動（通常はsetup-all.shで自動起動）
+bash ~/scripts/start-surreal.sh
+
+# TTLクリーンアップ（通常はcronで日次自動実行）
+agentdb cleanup
+
+# ログ確認
+cat ~/.agentdb/surreal.log
+```
+
+詳細: `docs/AGENTDB.md`
+
 ## プログラミング言語の使い方
 
 ### Python (uv)
@@ -204,6 +256,9 @@ notebooklm list
 ```
 
 ### Microsoft Graph API (Python)
+
+> **注意:** `msgraph-sdk` と `azure-identity` はグローバルインストールではなく、
+> プロジェクト依存として追加する: `uv add msgraph-sdk azure-identity`
 
 ```python
 # uv run python で実行

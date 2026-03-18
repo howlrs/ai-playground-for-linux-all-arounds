@@ -16,16 +16,30 @@ Claude Code（主）+ Gemini CLI（QA）+ Codex（補助）が連携して動作
 Claude Codeがメインエージェントとして設計・実装を行い、節目でGemini CLIにQAレビューを依頼。
 Codexは単純タスクの並列処理に利用する。詳細は [AGENTS.md](AGENTS.md) を参照。
 
+## AgentDB — 集合知基盤
+
+```
+Claude Code ──┐
+Gemini CLI  ──┼──→ AgentDB (SurrealDB) ──→ 集合知
+Codex       ──┤     ├─ logs (TTL 14日)
+専門Agent群  ──┘     └─ knowledge (永続)
+```
+
+複数のAI・エージェントが会話・実行ログ・知見・意思決定を **共有DB** に記録し、
+各々の視座と専門性から集合知を構築する。`agentdb` CLI で読み書き可能。
+詳細は [docs/AGENTDB.md](docs/AGENTDB.md) を参照。
+
 ## 搭載ツール
 
 | カテゴリ | ツール |
 |---------|--------|
 | AIエージェント | Claude Code, Gemini CLI, OpenAI Codex |
+| 共有データベース | SurrealDB (AgentDB), agentdb CLI |
 | 言語 | Node.js 22, Python 3.13 (uv), Go 1.23, Rust stable |
 | プラットフォーム | git, gh (GitHub), glab (GitLab) |
 | クラウド | gcloud, aws-cli v2 |
-| ワークスペース | Google Workspace CLI, CLI for Microsoft 365, notebooklm-py, msgraph-sdk |
-| ユーティリティ | vim, tmux, jq, ripgrep, fd-find |
+| ワークスペース | Google Workspace CLI, CLI for Microsoft 365, notebooklm-py |
+| ユーティリティ | vim, tmux, jq, ripgrep, fd-find, cron |
 
 ## クイックスタート
 
@@ -151,7 +165,23 @@ Claude Code:
 | [docs/SPEC.md](docs/SPEC.md) | 仕様書 - システム構成、ツール一覧、認証・永続化仕様 |
 | [docs/DESCRIPTION.md](docs/DESCRIPTION.md) | 説明書 - 設計思想、アーキテクチャ、技術選定理由 |
 | [docs/USAGE.md](docs/USAGE.md) | 利用書 - 全ツールの使い方、トラブルシューティング |
+| [docs/AGENTDB.md](docs/AGENTDB.md) | AgentDB活用方針 - CLIリファレンス、エージェント向けガイドライン |
 | [docs/CAUTION.md](docs/CAUTION.md) | 外部サービスCLI操作の注意事項 |
+
+## サンプル・シナリオ
+
+`examples/` ディレクトリにプロジェクトテンプレートとワークフローシナリオを収録。
+
+| 種別 | 内容 |
+|------|------|
+| [projects/nextjs-app](examples/projects/nextjs-app/) | Next.js 15 + TypeScript |
+| [projects/go-api](examples/projects/go-api/) | Go REST API（意図的バグ含む） |
+| [projects/rust-cli](examples/projects/rust-cli/) | Rust CLIタスク管理 |
+| [projects/python-data](examples/projects/python-data/) | pandas データ分析 |
+| [scenarios/code-review](examples/scenarios/code-review/) | Gemini QAコードレビュー体験 |
+| [scenarios/tdd](examples/scenarios/tdd/) | TDDワークフロー体験 |
+| [scenarios/teams-report](examples/scenarios/teams-report/) | Teamsメッセージ分析 |
+| [scenarios/agentdb-collab](examples/scenarios/agentdb-collab/) | AgentDBマルチエージェント連携 |
 
 ## 外部サービスCLIポリシー
 
