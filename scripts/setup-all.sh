@@ -32,6 +32,11 @@ echo "----------------------------------------------"
 bash "${SCRIPT_DIR}/setup-cloud.sh"
 echo "----------------------------------------------"
 
+# AgentDB (SurrealDB)
+echo "=== AgentDB Setup ==="
+bash "${SCRIPT_DIR}/start-surreal.sh"
+echo "----------------------------------------------"
+
 # Tool versions summary
 echo "=== Installed Tool Versions ==="
 echo ""
@@ -48,6 +53,7 @@ echo "glab:     $(glab --version 2>/dev/null | head -1 || echo 'not found')"
 echo "gcloud:   $(gcloud --version 2>/dev/null | head -1 || echo 'not found')"
 echo "aws:      $(aws --version 2>/dev/null || echo 'not found')"
 echo "m365:     $(m365 --version 2>/dev/null || echo 'not found')"
+echo "surreal:  $(surreal version 2>/dev/null || echo 'not found')"
 echo ""
 echo "=============================================="
 echo "  Setup complete. Run 'claude' to start."

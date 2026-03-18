@@ -29,6 +29,9 @@ services:
       # Persist m365 CLI auth
       - m365-config:/home/dev/.cli-m365
 
+      # Persist AgentDB (SurrealDB) data
+      - agentdb-data:/home/dev/.agentdb
+
       # Git config from host (read-only)
       - ${HOME}/.gitconfig:/home/dev/.gitconfig:ro
 
@@ -56,3 +59,4 @@ volumes:
   codex-config:
   uv-cache:
   m365-config:
+  agentdb-data:

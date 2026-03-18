@@ -154,10 +154,18 @@ RUN uvx --from "notebooklm-py[browser]" playwright install --with-deps chromium
 RUN claude mcp add-from-claude-plugin -- superpowers-marketplace/superpowers 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
+# 14.5. SurrealDB (AgentDB - multi-agent collective intelligence)
+# ---------------------------------------------------------------------------
+RUN curl -sSf https://install.surrealdb.com | sh
+
+# ---------------------------------------------------------------------------
 # 15. Setup scripts directory
 # ---------------------------------------------------------------------------
 COPY --chown=${USERNAME}:${USERNAME} scripts/ ${HOME}/scripts/
-RUN chmod +x ${HOME}/scripts/*.sh
+RUN chmod +x ${HOME}/scripts/*.sh ${HOME}/scripts/agentdb
+
+# Make agentdb available in PATH
+RUN ln -s ${HOME}/scripts/agentdb ${HOME}/.local/bin/agentdb
 
 # ---------------------------------------------------------------------------
 # 16. Claude Code settings (full permissions inside container)
