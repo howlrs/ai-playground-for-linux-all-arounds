@@ -86,3 +86,25 @@
 - パッケージ管理: npm, uv, go modules, cargo
 - 外部サービス: GitHub (gh), GitLab (glab), Google Cloud (gcloud), AWS (aws)
 - ワークスペース: Google Workspace CLI (gws), Microsoft 365 CLI (m365)
+
+## AgentDB 連携
+
+レビュー結果を AgentDB に記録し、他エージェントと知見を共有する。
+
+### レビュー結果の記録
+
+Claude Code がレビュー依頼時に、結果を AgentDB へ記録する。
+Gemini CLI 自身は直接 DB にアクセスしない（`-p` モードのため）。
+
+Claude Code は Gemini CLI のレビュー結果を受け取った後、以下を実行する:
+
+```bash
+export AGENTDB_AGENT=gemini
+agentdb log qa_review '{"target_agent":"claude","review_type":"code","findings":[...]}'
+```
+
+Critical/Important な知見が含まれる場合は knowledge に昇格:
+
+```bash
+agentdb save insight "<タイトル>" "<詳細>" --domain <domain> --tags "qa,gemini"
+```
