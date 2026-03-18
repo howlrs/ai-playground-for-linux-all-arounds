@@ -65,4 +65,12 @@ else
     echo "[agentdb] No schema file found at ${SCHEMA_FILE}, skipping initialization"
 fi
 
+# Register TTL cleanup cron (daily at 03:00)
+CLEANUP_SCRIPT="${SCRIPT_DIR}/agentdb-cleanup.sh"
+if command -v crontab >/dev/null 2>&1 && [ -f "${CLEANUP_SCRIPT}" ]; then
+    CRON_ENTRY="0 3 * * * ${CLEANUP_SCRIPT}"
+    ( crontab -l 2>/dev/null | grep -v agentdb-cleanup; echo "${CRON_ENTRY}" ) | crontab -
+    echo "[agentdb] TTL cleanup cron registered (daily 03:00)"
+fi
+
 echo "[agentdb] SurrealDB is running (PID ${SURREAL_PID}, bind ${AGENTDB_BIND})"

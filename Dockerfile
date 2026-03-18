@@ -30,6 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     vim \
     tmux \
     jq \
+    cron \
     ripgrep \
     fd-find \
     build-essential \

@@ -30,9 +30,33 @@ _sql_exec() {
   echo "${query}" | _sql "${db}"
 }
 
-# Escape single quotes for SurrealQL string literals (prevents injection)
+# Escape string for SurrealQL string literals (prevents injection)
 _escape() {
-  printf '%s' "$1" | sed "s/'/''/g"
+  printf '%s' "$1" | sed "s/\\\\/\\\\\\\\/g; s/'/''/g"
+}
+
+# Validate JSON using jq (if available) or basic check
+_validate_json() {
+  if command -v jq >/dev/null 2>&1; then
+    if ! printf '%s' "$1" | jq . >/dev/null 2>&1; then
+      echo "Invalid JSON: $1" >&2
+      return 1
+    fi
+  else
+    # Basic check: reject semicolons outside of string values (prevents query injection)
+    if [[ "$1" =~ \;[[:space:]]*[A-Z] ]]; then
+      echo "Invalid data: contains suspicious pattern" >&2
+      return 1
+    fi
+  fi
+}
+
+# Validate --db parameter
+_validate_db() {
+  if [[ "$1" != "logs" && "$1" != "knowledge" ]]; then
+    echo "Invalid database: $1 (must be 'logs' or 'knowledge')" >&2
+    return 1
+  fi
 }
 
 # Validate duration format (e.g. 1h, 7d, 30m, 10s)
@@ -53,7 +77,7 @@ _validate_int() {
 
 # Validate SurrealDB record ID format (e.g. entry:abc123, event:xyz)
 _validate_record_id() {
-  if [[ ! "$1" =~ ^[a-zA-Z_][a-zA-Z0-9_]*:[a-zA-Z0-9_]+$ ]]; then
+  if [[ ! "$1" =~ ^[a-zA-Z_][a-zA-Z0-9_]*:[a-zA-Z0-9_-]+$ ]]; then
     echo "Invalid record ID: $1 (expected format: table:id)" >&2
     return 1
   fi
@@ -109,6 +133,7 @@ cmd_log() {
   local type="$1"
   local data="$2"
 
+  _validate_json "${data}" || return 1
   local e_agent; e_agent="$(_escape "${AGENTDB_AGENT}")"
   local e_type; e_type="$(_escape "${type}")"
   _sql_exec "logs" "CREATE event SET agent = '${e_agent}', type = '${e_type}', data = ${data}, created_at = time::now();"
@@ -160,7 +185,13 @@ cmd_save() {
       --tags)
         # Convert comma-separated tags to SurrealQL array: ['a','b','c']
         local raw="$2"
-        tags="[$(echo "${raw}" | sed "s/[^,]*/'&'/g")]"
+        local tag_arr=""
+        IFS=',' read -ra tag_parts <<< "${raw}"
+        for t in "${tag_parts[@]}"; do
+          [[ -n "${tag_arr}" ]] && tag_arr="${tag_arr},"
+          tag_arr="${tag_arr}'$(_escape "${t}")'"
+        done
+        tags="[${tag_arr}]"
         shift 2
         ;;
       *) echo "Unknown option: $1" >&2; return 1 ;;
@@ -232,6 +263,7 @@ cmd_query() {
     esac
   done
 
+  _validate_db "${db}" || return 1
   _sql_exec "${db}" "${surql}"
 }
 
@@ -239,6 +271,14 @@ cmd_status() {
   echo "=== AgentDB Status ==="
   echo "Endpoint: http://${AGENTDB_BIND}"
   echo "Namespace: ${AGENTDB_NS}"
+  echo "Agent: ${AGENTDB_AGENT}"
+  echo ""
+  if ! curl -sf "http://${AGENTDB_BIND}/health" >/dev/null 2>&1; then
+    echo "SurrealDB: NOT RUNNING" >&2
+    echo "Start with: bash ~/scripts/start-surreal.sh" >&2
+    return 1
+  fi
+  echo "SurrealDB: running"
   echo ""
   echo "--- Logs DB ---"
   _sql_exec "logs" "SELECT count() AS total FROM event GROUP ALL;"
