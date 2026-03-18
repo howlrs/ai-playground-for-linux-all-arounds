@@ -60,7 +60,9 @@ RUN mkdir -p -m 755 /etc/apt/keyrings \
 # ---------------------------------------------------------------------------
 # 4. GitLab CLI (glab)
 # ---------------------------------------------------------------------------
-RUN curl -fsSL "https://gitlab.com/gitlab-org/cli/-/releases/permalink/latest/downloads/glab_linux_amd64.deb" \
+RUN GLAB_VERSION=$(curl -s "https://gitlab.com/api/v4/projects/34675721/releases" | grep -o '"tag_name":"v[^"]*"' | head -1 | grep -o 'v[^"]*') \
+    && GLAB_VER=${GLAB_VERSION#v} \
+    && curl -fsSL "https://gitlab.com/gitlab-org/cli/-/releases/${GLAB_VERSION}/downloads/glab_${GLAB_VER}_linux_amd64.deb" \
        -o /tmp/glab.deb \
     && dpkg -i /tmp/glab.deb \
     && rm /tmp/glab.deb
@@ -94,13 +96,15 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 # ---------------------------------------------------------------------------
 # 8. uv (Python package manager - replaces pip/venv/conda)
 # ---------------------------------------------------------------------------
-RUN curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
 # ---------------------------------------------------------------------------
 # 9. Create non-root user with full sudo
 # ---------------------------------------------------------------------------
-RUN groupadd --gid ${USER_GID} ${USERNAME} \
+RUN userdel -r ubuntu 2>/dev/null || true \
+    && groupdel ubuntu 2>/dev/null || true \
+    && (groupadd --gid ${USER_GID} ${USERNAME} 2>/dev/null || true) \
     && useradd --uid ${USER_UID} --gid ${USER_GID} -m -s /bin/bash ${USERNAME} \
     && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} \
     && chmod 0440 /etc/sudoers.d/${USERNAME}
@@ -113,7 +117,7 @@ ENV PATH="${HOME}/.cargo/bin:${HOME}/go/bin:${HOME}/.local/bin:${PATH}"
 # ---------------------------------------------------------------------------
 # 10. uv for user - install Python and set as managed
 # ---------------------------------------------------------------------------
-RUN curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh \
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
     && uv python install 3.13 \
     && uv python pin 3.13
 ENV UV_PYTHON_PREFERENCE=managed
@@ -141,9 +145,9 @@ RUN npm install -g \
 # ---------------------------------------------------------------------------
 # 13. Python tools via uv (global tool installs)
 # ---------------------------------------------------------------------------
-RUN uv tool install "notebooklm-py[browser]" \
-    && uv tool install msgraph-sdk \
-    && uv tool install azure-identity
+RUN uv tool install "notebooklm-py[browser]"
+# msgraph-sdk, azure-identity are libraries (not CLI tools).
+# Add them as project dependencies with: uv add msgraph-sdk azure-identity
 
 # Playwright for notebooklm-py (needs browser binary)
 RUN uvx --from "notebooklm-py[browser]" playwright install --with-deps chromium
@@ -157,6 +161,7 @@ RUN claude mcp add-from-claude-plugin -- superpowers-marketplace/superpowers 2>/
 # 14.5. SurrealDB (AgentDB - multi-agent collective intelligence)
 # ---------------------------------------------------------------------------
 RUN curl -sSf https://install.surrealdb.com | sh
+ENV PATH="${HOME}/.surrealdb:${PATH}"
 
 # ---------------------------------------------------------------------------
 # 15. Setup scripts directory

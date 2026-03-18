@@ -33,6 +33,7 @@ claude
 | [code-review](scenarios/code-review/) | 意図的にバグを含むコードをGemini CLIにQAレビューさせる |
 | [tdd](scenarios/tdd/) | テストが先、実装が空の状態からClaude CodeにTDDで実装させる |
 | [teams-report](scenarios/teams-report/) | Teamsモックデータからメッセージ分析レポートを生成する |
+| [agentdb-collab](scenarios/agentdb-collab/) | AgentDBで複数エージェントの知見を共有・蓄積する |
 
 ### 使い方
 
