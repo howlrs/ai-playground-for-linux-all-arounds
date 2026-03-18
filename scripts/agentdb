@@ -30,6 +30,35 @@ _sql_exec() {
   echo "${query}" | _sql "${db}"
 }
 
+# Escape single quotes for SurrealQL string literals (prevents injection)
+_escape() {
+  printf '%s' "$1" | sed "s/'/''/g"
+}
+
+# Validate duration format (e.g. 1h, 7d, 30m, 10s)
+_validate_duration() {
+  if [[ ! "$1" =~ ^[0-9]+[smhd]$ ]]; then
+    echo "Invalid duration: $1 (expected format: Ns, Nm, Nh, Nd)" >&2
+    return 1
+  fi
+}
+
+# Validate positive integer
+_validate_int() {
+  if [[ ! "$1" =~ ^[0-9]+$ ]]; then
+    echo "Invalid number: $1" >&2
+    return 1
+  fi
+}
+
+# Validate SurrealDB record ID format (e.g. entry:abc123, event:xyz)
+_validate_record_id() {
+  if [[ ! "$1" =~ ^[a-zA-Z_][a-zA-Z0-9_]*:[a-zA-Z0-9_]+$ ]]; then
+    echo "Invalid record ID: $1 (expected format: table:id)" >&2
+    return 1
+  fi
+}
+
 _usage() {
   cat <<'USAGE'
 AgentDB - CLI wrapper for multi-agent shared database
@@ -80,7 +109,9 @@ cmd_log() {
   local type="$1"
   local data="$2"
 
-  _sql_exec "logs" "CREATE event SET agent = '${AGENTDB_AGENT}', type = '${type}', data = ${data}, created_at = time::now();"
+  local e_agent; e_agent="$(_escape "${AGENTDB_AGENT}")"
+  local e_type; e_type="$(_escape "${type}")"
+  _sql_exec "logs" "CREATE event SET agent = '${e_agent}', type = '${e_type}', data = ${data}, created_at = time::now();"
 }
 
 cmd_search() {
@@ -102,9 +133,13 @@ cmd_search() {
     esac
   done
 
-  local where="WHERE string::lowercase(type) CONTAINS string::lowercase('${keyword}') OR string::lowercase(<string> data) CONTAINS string::lowercase('${keyword}')"
-  [[ -n "${filter_type}" ]]  && where="${where} AND type = '${filter_type}'"
-  [[ -n "${filter_agent}" ]] && where="${where} AND agent = '${filter_agent}'"
+  _validate_int "${limit}" || return 1
+  [[ -n "${filter_since}" ]] && { _validate_duration "${filter_since}" || return 1; }
+
+  local e_keyword; e_keyword="$(_escape "${keyword}")"
+  local where="WHERE string::lowercase(type) CONTAINS string::lowercase('${e_keyword}') OR string::lowercase(<string> data) CONTAINS string::lowercase('${e_keyword}')"
+  [[ -n "${filter_type}" ]]  && where="${where} AND type = '$(_escape "${filter_type}")'"
+  [[ -n "${filter_agent}" ]] && where="${where} AND agent = '$(_escape "${filter_agent}")'"
   [[ -n "${filter_since}" ]] && where="${where} AND created_at > time::now() - ${filter_since}"
 
   _sql_exec "logs" "SELECT * FROM event ${where} ORDER BY created_at DESC LIMIT ${limit};"
@@ -121,7 +156,7 @@ cmd_save() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --domain) domain="'$2'"; shift 2 ;;
+      --domain) domain="'$(_escape "$2")'"; shift 2 ;;
       --tags)
         # Convert comma-separated tags to SurrealQL array: ['a','b','c']
         local raw="$2"
@@ -132,7 +167,11 @@ cmd_save() {
     esac
   done
 
-  _sql_exec "knowledge" "CREATE entry SET agent = '${AGENTDB_AGENT}', kind = '${kind}', title = '${title}', body = '${body}', domain = ${domain}, tags = ${tags}, created_at = time::now();"
+  local e_agent; e_agent="$(_escape "${AGENTDB_AGENT}")"
+  local e_kind; e_kind="$(_escape "${kind}")"
+  local e_title; e_title="$(_escape "${title}")"
+  local e_body; e_body="$(_escape "${body}")"
+  _sql_exec "knowledge" "CREATE entry SET agent = '${e_agent}', kind = '${e_kind}', title = '${e_title}', body = '${e_body}', domain = ${domain}, tags = ${tags}, created_at = time::now(), updated_at = time::now();"
 }
 
 cmd_find() {
@@ -154,10 +193,13 @@ cmd_find() {
     esac
   done
 
-  local where="WHERE string::lowercase(title) CONTAINS string::lowercase('${keyword}') OR string::lowercase(body) CONTAINS string::lowercase('${keyword}')"
-  [[ -n "${filter_kind}" ]]   && where="${where} AND kind = '${filter_kind}'"
-  [[ -n "${filter_agent}" ]]  && where="${where} AND agent = '${filter_agent}'"
-  [[ -n "${filter_domain}" ]] && where="${where} AND domain = '${filter_domain}'"
+  _validate_int "${limit}" || return 1
+
+  local e_keyword; e_keyword="$(_escape "${keyword}")"
+  local where="WHERE string::lowercase(title) CONTAINS string::lowercase('${e_keyword}') OR string::lowercase(body) CONTAINS string::lowercase('${e_keyword}')"
+  [[ -n "${filter_kind}" ]]   && where="${where} AND kind = '$(_escape "${filter_kind}")'"
+  [[ -n "${filter_agent}" ]]  && where="${where} AND agent = '$(_escape "${filter_agent}")'"
+  [[ -n "${filter_domain}" ]] && where="${where} AND domain = '$(_escape "${filter_domain}")'"
 
   _sql_exec "knowledge" "SELECT * FROM entry ${where} ORDER BY created_at DESC LIMIT ${limit};"
 }
@@ -169,7 +211,10 @@ cmd_relate() {
   fi
   local from_id="$1" relation="$2" to_id="$3"
 
-  _sql_exec "knowledge" "RELATE ${from_id}->relates_to->${to_id} SET relation = '${relation}', created_at = time::now();"
+  _validate_record_id "${from_id}" || return 1
+  _validate_record_id "${to_id}" || return 1
+  local e_relation; e_relation="$(_escape "${relation}")"
+  _sql_exec "knowledge" "RELATE ${from_id}->relates_to->${to_id} SET relation = '${e_relation}', created_at = time::now();"
 }
 
 cmd_query() {
