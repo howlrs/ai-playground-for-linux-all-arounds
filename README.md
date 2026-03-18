@@ -41,7 +41,7 @@ Codex       ──┤     ├─ logs (TTL 14日)
 | ワークスペース | Google Workspace CLI, CLI for Microsoft 365, notebooklm-py |
 | ユーティリティ | vim, tmux, jq, ripgrep, fd-find, cron |
 
-## クイックスタート
+## クイックスタート（新規導入）
 
 ```bash
 git clone git@github.com:howlrs/ai-playground-for-linux-all-arounds.git
@@ -50,16 +50,72 @@ cd ai-playground-for-linux-all-arounds
 cp .env.example .env
 # .env に ANTHROPIC_API_KEY, GEMINI_API_KEY 等を記入
 
-docker compose build
+docker compose build          # 初回は10〜20分程度
 docker compose up -d
 docker compose exec playground bash
 
-# コンテナ内で認証状態を確認
+# コンテナ内で初期セットアップ（AgentDB起動含む）
 ~/scripts/setup-all.sh
 
 # Claude Code を起動
 claude
 ```
+
+## 既存環境のアップデート
+
+最新版を取得して再ビルドするだけで更新できます。**ユーザーデータは消えません。**
+
+```bash
+# ホスト側で実行
+git pull origin main
+docker compose build          # イメージ再ビルド
+docker compose up -d          # コンテナ再作成
+docker compose exec playground bash
+
+# コンテナ内で実行（AgentDB初期化等）
+~/scripts/setup-all.sh
+```
+
+### データ永続化の仕組み
+
+```
+┌───────────────────────────────────────────┐
+│  イメージ (docker compose build)          │  ← 毎回作り直される
+│  OS, ツール, スクリプト                     │    ここのデータは消える
+└──────────┬────────────────────────────────┘
+           │
+┌──────────▼────────────────────────────────┐
+│  コンテナ実行時                             │
+│                                           │
+│  ┌─ named volumes ─────────────────────┐  │
+│  │ claude-config   → ~/.claude         │  │
+│  │ gemini-config   → ~/.gemini         │  │  ← build で消えない
+│  │ codex-config    → ~/.codex          │  │
+│  │ agentdb-data    → ~/.agentdb        │  │
+│  │ uv-cache        → ~/.cache/uv      │  │
+│  │ m365-config     → ~/.cli-m365       │  │
+│  └─────────────────────────────────────┘  │
+│                                           │
+│  ┌─ bind mount ────────────────────────┐  │
+│  │ ./workspace → ~/workspace           │  │  ← ホストのファイル
+│  └─────────────────────────────────────┘  │    絶対に消えない
+└───────────────────────────────────────────┘
+```
+
+| データ | 保存場所 | `build` で消える？ |
+|--------|---------|-------------------|
+| workspace/ 内のリポジトリ・ファイル | ホストの `./workspace/` | **消えない** |
+| AgentDB のデータ (logs + knowledge) | `agentdb-data` volume | **消えない** |
+| Claude/Gemini/Codex の設定・認証 | named volumes | **消えない** |
+| uv パッケージキャッシュ | `uv-cache` volume | **消えない** |
+| M365 認証セッション | `m365-config` volume | **消えない** |
+| `~/` 直下に直接置いたファイル | コンテナ内のみ | **消える** |
+
+### 注意点
+
+1. **作業ファイルは必ず `~/workspace/` 内に置く** — `~/` 直下に置いたファイルは再ビルドで消失します
+2. **`docker compose down -v` は全データを削除する** — `-v` フラグは named volumes も削除するため、AgentDB データや認証情報も消えます。通常は `docker compose down`（`-v` なし）を使用してください
+3. **初回・アップデート後は `setup-all.sh` を実行** — AgentDB の起動とスキーマ初期化が行われます
 
 ## 活用事例
 
