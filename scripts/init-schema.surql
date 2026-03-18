@@ -11,7 +11,7 @@ DEFINE TABLE event SCHEMALESS;
 
 DEFINE FIELD agent      ON TABLE event TYPE string;
 DEFINE FIELD type       ON TABLE event TYPE string;
-DEFINE FIELD data       ON TABLE event FLEXIBLE TYPE object;
+DEFINE FIELD data       ON TABLE event TYPE object FLEXIBLE;
 DEFINE FIELD tags       ON TABLE event TYPE option<array<string>>;
 DEFINE FIELD created_at ON TABLE event TYPE datetime DEFAULT time::now();
 
@@ -31,7 +31,7 @@ DEFINE FIELD kind       ON TABLE entry TYPE string;
 DEFINE FIELD domain     ON TABLE entry TYPE option<string>;
 DEFINE FIELD title      ON TABLE entry TYPE string;
 DEFINE FIELD body       ON TABLE entry TYPE string;
-DEFINE FIELD data       ON TABLE entry FLEXIBLE TYPE object;
+DEFINE FIELD data       ON TABLE entry TYPE object FLEXIBLE;
 DEFINE FIELD tags       ON TABLE entry TYPE option<array<string>>;
 DEFINE FIELD created_at ON TABLE entry TYPE datetime DEFAULT time::now();
 DEFINE FIELD updated_at ON TABLE entry TYPE datetime DEFAULT time::now();
