@@ -1,0 +1,236 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# AgentDB - CLI wrapper for multi-agent shared database (SurrealDB)
+# Usage: agentdb <command> [args...]
+
+AGENTDB_BIND="${AGENTDB_BIND:-127.0.0.1:8000}"
+AGENTDB_USER="${AGENTDB_USER:-root}"
+AGENTDB_PASS="${AGENTDB_PASS:-root}"
+AGENTDB_NS="agents"
+AGENTDB_AGENT="${AGENTDB_AGENT:-unknown}"
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+_sql() {
+  local db="$1"
+  surreal sql \
+    --endpoint "http://${AGENTDB_BIND}" \
+    --username "${AGENTDB_USER}" \
+    --password "${AGENTDB_PASS}" \
+    --namespace "${AGENTDB_NS}" \
+    --database "${db}"
+}
+
+_sql_exec() {
+  local db="$1"
+  local query="$2"
+  echo "${query}" | _sql "${db}"
+}
+
+_usage() {
+  cat <<'USAGE'
+AgentDB - CLI wrapper for multi-agent shared database
+
+Usage: agentdb <command> [args...]
+
+Logs DB commands:
+  log <type> <data_json>           Create a log event
+  search <keyword> [options]       Search log events
+    --type <T>                       Filter by event type
+    --agent <A>                      Filter by agent name
+    --since <DURATION>               Filter by time (e.g. 1h, 7d)
+    --limit <N>                      Max results (default: 20)
+
+Knowledge DB commands:
+  save <kind> <title> <body> [options]  Save a knowledge entry
+    --domain <D>                     Domain classification
+    --tags <t1,t2,...>               Comma-separated tags
+  find <keyword> [options]              Search knowledge entries
+    --kind <K>                       Filter by kind
+    --agent <A>                      Filter by agent name
+    --domain <D>                     Filter by domain
+    --limit <N>                      Max results (default: 20)
+  relate <from_id> <relation> <to_id>   Create a relation between entries
+
+Common commands:
+  query <surql> [--db logs|knowledge]   Execute raw SurrealQL (default db: logs)
+  status                                Check health and show record counts
+  cleanup                               Delete log events older than 14 days
+
+Environment variables:
+  AGENTDB_BIND   SurrealDB address (default: 127.0.0.1:8000)
+  AGENTDB_USER   Username (default: root)
+  AGENTDB_PASS   Password (default: root)
+  AGENTDB_AGENT  Calling agent name (default: unknown)
+USAGE
+}
+
+# ---------------------------------------------------------------------------
+# Commands
+# ---------------------------------------------------------------------------
+
+cmd_log() {
+  if [[ $# -lt 2 ]]; then
+    echo "Usage: agentdb log <type> <data_json>" >&2
+    return 1
+  fi
+  local type="$1"
+  local data="$2"
+
+  _sql_exec "logs" "CREATE event SET agent = '${AGENTDB_AGENT}', type = '${type}', data = ${data}, created_at = time::now();"
+}
+
+cmd_search() {
+  if [[ $# -lt 1 ]]; then
+    echo "Usage: agentdb search <keyword> [--type T] [--agent A] [--since DURATION] [--limit N]" >&2
+    return 1
+  fi
+  local keyword="$1"; shift
+
+  local filter_type="" filter_agent="" filter_since="" limit="20"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --type)  filter_type="$2"; shift 2 ;;
+      --agent) filter_agent="$2"; shift 2 ;;
+      --since) filter_since="$2"; shift 2 ;;
+      --limit) limit="$2"; shift 2 ;;
+      *) echo "Unknown option: $1" >&2; return 1 ;;
+    esac
+  done
+
+  local where="WHERE string::lowercase(type) CONTAINS string::lowercase('${keyword}') OR string::lowercase(<string> data) CONTAINS string::lowercase('${keyword}')"
+  [[ -n "${filter_type}" ]]  && where="${where} AND type = '${filter_type}'"
+  [[ -n "${filter_agent}" ]] && where="${where} AND agent = '${filter_agent}'"
+  [[ -n "${filter_since}" ]] && where="${where} AND created_at > time::now() - ${filter_since}"
+
+  _sql_exec "logs" "SELECT * FROM event ${where} ORDER BY created_at DESC LIMIT ${limit};"
+}
+
+cmd_save() {
+  if [[ $# -lt 3 ]]; then
+    echo "Usage: agentdb save <kind> <title> <body> [--domain D] [--tags t1,t2]" >&2
+    return 1
+  fi
+  local kind="$1" title="$2" body="$3"; shift 3
+
+  local domain="NONE" tags="NONE"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --domain) domain="'$2'"; shift 2 ;;
+      --tags)
+        # Convert comma-separated tags to SurrealQL array: ['a','b','c']
+        local raw="$2"
+        tags="[$(echo "${raw}" | sed "s/[^,]*/'&'/g")]"
+        shift 2
+        ;;
+      *) echo "Unknown option: $1" >&2; return 1 ;;
+    esac
+  done
+
+  _sql_exec "knowledge" "CREATE entry SET agent = '${AGENTDB_AGENT}', kind = '${kind}', title = '${title}', body = '${body}', domain = ${domain}, tags = ${tags}, created_at = time::now();"
+}
+
+cmd_find() {
+  if [[ $# -lt 1 ]]; then
+    echo "Usage: agentdb find <keyword> [--kind K] [--agent A] [--domain D] [--limit N]" >&2
+    return 1
+  fi
+  local keyword="$1"; shift
+
+  local filter_kind="" filter_agent="" filter_domain="" limit="20"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --kind)   filter_kind="$2"; shift 2 ;;
+      --agent)  filter_agent="$2"; shift 2 ;;
+      --domain) filter_domain="$2"; shift 2 ;;
+      --limit)  limit="$2"; shift 2 ;;
+      *) echo "Unknown option: $1" >&2; return 1 ;;
+    esac
+  done
+
+  local where="WHERE string::lowercase(title) CONTAINS string::lowercase('${keyword}') OR string::lowercase(body) CONTAINS string::lowercase('${keyword}')"
+  [[ -n "${filter_kind}" ]]   && where="${where} AND kind = '${filter_kind}'"
+  [[ -n "${filter_agent}" ]]  && where="${where} AND agent = '${filter_agent}'"
+  [[ -n "${filter_domain}" ]] && where="${where} AND domain = '${filter_domain}'"
+
+  _sql_exec "knowledge" "SELECT * FROM entry ${where} ORDER BY created_at DESC LIMIT ${limit};"
+}
+
+cmd_relate() {
+  if [[ $# -lt 3 ]]; then
+    echo "Usage: agentdb relate <from_id> <relation> <to_id>" >&2
+    return 1
+  fi
+  local from_id="$1" relation="$2" to_id="$3"
+
+  _sql_exec "knowledge" "RELATE ${from_id}->relates_to->${to_id} SET relation = '${relation}', created_at = time::now();"
+}
+
+cmd_query() {
+  if [[ $# -lt 1 ]]; then
+    echo "Usage: agentdb query <surql> [--db logs|knowledge]" >&2
+    return 1
+  fi
+  local surql="$1"; shift
+
+  local db="logs"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --db) db="$2"; shift 2 ;;
+      *) echo "Unknown option: $1" >&2; return 1 ;;
+    esac
+  done
+
+  _sql_exec "${db}" "${surql}"
+}
+
+cmd_status() {
+  echo "=== AgentDB Status ==="
+  echo "Endpoint: http://${AGENTDB_BIND}"
+  echo "Namespace: ${AGENTDB_NS}"
+  echo ""
+  echo "--- Logs DB ---"
+  _sql_exec "logs" "SELECT count() AS total FROM event GROUP ALL;"
+  echo ""
+  echo "--- Knowledge DB ---"
+  _sql_exec "knowledge" "SELECT count() AS total FROM entry GROUP ALL;"
+}
+
+cmd_cleanup() {
+  echo "Cleaning up log events older than 14 days..."
+  _sql_exec "logs" "DELETE FROM event WHERE created_at < time::now() - 14d;"
+  echo "Done."
+}
+
+# ---------------------------------------------------------------------------
+# Main dispatch
+# ---------------------------------------------------------------------------
+
+if [[ $# -lt 1 ]]; then
+  _usage
+  exit 1
+fi
+
+case "$1" in
+  log)     shift; cmd_log "$@" ;;
+  search)  shift; cmd_search "$@" ;;
+  save)    shift; cmd_save "$@" ;;
+  find)    shift; cmd_find "$@" ;;
+  relate)  shift; cmd_relate "$@" ;;
+  query)   shift; cmd_query "$@" ;;
+  status)  cmd_status ;;
+  cleanup) cmd_cleanup ;;
+  help|-h|--help) _usage ;;
+  *)
+    echo "Unknown command: $1" >&2
+    echo "" >&2
+    _usage >&2
+    exit 1
+    ;;
+esac
