@@ -93,6 +93,33 @@ Gemini CLIの回答は構造化されたフォーマットで返る（GEMINI.md 
 単純で独立したタスク（フォーマット修正、型定義生成、ボイラープレート作成など）を
 Codex に委任できる。ただし、アーキテクチャに影響する判断は含めないこと。
 
+## AgentDB — 集合知基盤
+
+本環境には SurrealDB ベースの共有データベース AgentDB が搭載されている。
+すべてのエージェントが `agentdb` CLI を通じて情報を共有する。
+
+### 基本ルール
+
+- `AGENTDB_AGENT=claude` を設定してから使用する
+- 作業開始時に `agentdb find "" --domain <担当ドメイン>` で既存知見を確認する
+- 重要な意思決定は `agentdb save decision` で記録する
+- QAレビュー結果は `agentdb log qa_review` で記録する
+- 詳細は `docs/AGENTDB.md` を参照
+
+### クイックリファレンス
+
+```bash
+# イベント記録（14日で自動削除）
+agentdb log <type> '<json>'
+
+# 知見の永続化
+agentdb save <kind> "<title>" "<body>" [--domain D] [--tags t1,t2]
+
+# 検索
+agentdb search "<keyword>" --since 7d    # logs
+agentdb find "<keyword>" --kind insight   # knowledge
+```
+
 ## 搭載ツール
 
 ### プログラミング言語
